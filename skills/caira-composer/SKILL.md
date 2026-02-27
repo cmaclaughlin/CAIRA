@@ -56,6 +56,64 @@ I will guide you through:
 - Compliance and data sovereignty constraints
 - Cost sensitivity and expected scale
 
+## Reference pointers
+
+Use these files during the workflow:
+
+- `references/REFERENCE.md`: Quick index of all guidance files and when each one applies.
+- `references/architecture-guidance.md`: Use for architecture-level recommendations and Well-Architected considerations after RA selection.
+- `references/configuration-guidance.md`: Use during Step 3 for parameter validation, dependency checks, and secure defaults.
+- `references/deployment-guidance.md`: Use before Step 4 for prerequisites, Azure CLI auth, and Terraform `ARM_*` environment variables.
+
+## Machine-readable workflow
+
+```yaml
+workflow:
+   schema_version: "1.0"
+   skill: "caira-composer"
+   steps:
+      - id: step-1
+         name: discover_and_recommend_architecture
+         requires_confirmation: true
+         outputs:
+            - selected_reference_architecture
+         references:
+            - references/REFERENCE.md
+            - references/architecture-guidance.md
+      - id: step-2
+         name: copy_ra_and_modules
+         requires_confirmation: false
+         outputs:
+            - local_reference_architecture_folder
+            - local_modules_folder
+      - id: step-3
+         name: customize_configuration
+         requires_confirmation: true
+         outputs:
+            - terraform.tfvars
+         references:
+            - references/configuration-guidance.md
+      - id: step-4
+         name: plan_and_apply
+         requires_confirmation:
+            plan: false
+            apply: true
+         outputs:
+            - deployment.tfplan
+         references:
+            - references/deployment-guidance.md
+      - id: step-5
+         name: smoke_test
+         requires_confirmation:
+            core_smoke_tests: false
+            model_deployment_validation: true
+         optional_actions:
+            - id: validate_model_deployments
+               scripts:
+                  - scripts/assign-openai-contributor-role.sh
+                  - scripts/curl-dynamic-model-endpoint.sh
+```
+
 ## Workflow
 
 ### 1) Discover and recommend architecture options
@@ -100,6 +158,8 @@ Execution prompt:
 
 ### 3) Customize configuration with user
 
+See `references/configuration-guidance.md` for parameter validation, dependency compatibility checks, and secure configuration defaults.
+
 1. Read `<selected_ra>/variables.tf` and identify required variables.
 1. Create `terraform.tfvars` in the selected RA directory if missing.
 1. Walk through a focused checklist with the user and confirm values:
@@ -116,6 +176,8 @@ Execution prompt:
 - "I can walk you through each variable and explain defaults, or apply your confirmed values directly."
 
 ### 4) Plan and apply safely
+
+See `references/deployment-guidance.md` for Step 4 prerequisites, Azure CLI authentication, and Terraform `ARM_*` environment variables.
 
 From `reference_architectures/<selected_ra>/`:
 
@@ -145,7 +207,15 @@ Run lightweight post-deploy checks:
 1. Verify resource group and core resources exist with Azure CLI (`az resource list` by RG).
 1. Validate AI Foundry/account endpoints are reachable (where applicable to selected RA).
 1. Validate dependent services expected by the RA (for example storage, key vault, search, cosmos) are provisioned.
+1. Offer optional model deployment validation and ask for explicit confirmation before running it.
+   - If the user agrees, run `scripts/assign-openai-contributor-role.sh` to ensure the signed-in user has required RBAC.
+   - Then run `scripts/curl-dynamic-model-endpoint.sh` against the selected model deployment endpoint.
+   - Report response success/failure and include targeted remediation if auth or deployment invocation fails.
 1. Report pass/fail per check and next remediation step for failures.
+
+Execution prompt:
+
+- "Would you like to also validate model deployments now? If yes, I will run RBAC assignment and then invoke the selected deployment endpoint."
 
 ## Expected outputs
 
