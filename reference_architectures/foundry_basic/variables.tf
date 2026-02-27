@@ -28,6 +28,44 @@ variable "sku" {
   default     = "S0"
 }
 
+variable "model_deployments" {
+  description = "The list of model deployments to create in AI Foundry."
+  type = list(object({
+    name    = string
+    version = string
+    format  = string
+    sku = optional(object({
+      name     = string
+      capacity = number
+      }), {
+      name     = "GlobalStandard"
+      capacity = 50
+    })
+  }))
+  default = [
+    {
+      format  = "OpenAI"
+      name    = "gpt-5-chat"
+      version = "2025-10-03"
+    },
+    {
+      format  = "OpenAI"
+      name    = "gpt-5-nano"
+      version = "2025-08-07"
+    },
+    {
+      format  = "OpenAI"
+      name    = "text-embedding-3-large"
+      version = "1"
+    },
+    {
+      format  = "OpenAI"
+      name    = "gpt-4o-mini"
+      version = "2024-07-18"
+    }
+  ]
+}
+
 variable "enable_telemetry" {
   type        = bool
   default     = true

@@ -58,12 +58,7 @@ module "ai_foundry" {
 
   # Model deployments to make available within Foundry
   # Add/remove models as needed for your workload requirements
-  model_deployments = [
-    module.common_models.gpt_5_2_chat,
-    module.common_models.gpt_5_nano,
-    module.common_models.text_embedding_3_large,
-    module.common_models.gpt_4o_mini
-  ]
+  model_deployments = var.model_deployments
 
   application_insights = module.application_insights
 

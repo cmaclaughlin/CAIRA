@@ -56,12 +56,7 @@ module "ai_foundry" {
   sku               = var.sku
   name              = module.naming.cognitive_account.name_unique
 
-  model_deployments = [
-    module.common_models.gpt_5_2_chat,
-    module.common_models.gpt_5_nano,
-    module.common_models.text_embedding_3_large,
-    module.common_models.gpt_4o_mini
-  ]
+  model_deployments = var.model_deployments
 
   application_insights = module.application_insights
 
