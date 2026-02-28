@@ -13,9 +13,11 @@ I will help you compose a CAIRA-based setup in your own repository with concise,
 I will guide you through:
 
 1. Selecting the right CAIRA Reference Architecture (RA)
+1. Crawling the CAIRA repository to identify currently available RAs before local copy
 1. Copying the selected RA and required modules locally
 1. Customizing configuration safely
-1. Running `terraform plan` and `terraform apply` with explicit confirmation
+1. Running `terraform plan` safely
+1. Running `terraform apply` with explicit confirmation
 1. Executing smoke tests against deployed infrastructure
 
 ## Response style
@@ -30,7 +32,7 @@ I will guide you through:
 
 1. Summarize what will be done in a clear step list.
 1. Offer execution choice: manual steps or guided command execution.
-1. Wait for confirmation before deployment actions (`terraform apply`).
+1. Pause after `terraform plan`, present the plan summary, and wait for user decision before any apply action.
 1. Continue with validation and smoke tests, then report results clearly.
 
 ## Use this skill for
@@ -64,6 +66,7 @@ Use these files during the workflow:
 - `references/architecture-guidance.md`: Use for architecture-level recommendations and Well-Architected considerations after RA selection.
 - `references/configuration-guidance.md`: Use during Step 3 for parameter validation, dependency checks, and secure defaults.
 - `references/deployment-guidance.md`: Use before Step 4 for prerequisites, Azure CLI auth, and Terraform `ARM_*` environment variables.
+- `references/smoke-test-guidance.md`: Use during Step 6 for post-deploy checks and model validation payload guidance.
 
 ## Machine-readable workflow
 
@@ -94,19 +97,27 @@ workflow:
          references:
             - references/configuration-guidance.md
       - id: step-4
-         name: plan_and_apply
-         requires_confirmation:
-            plan: false
-            apply: true
+         name: plan
+         requires_confirmation: true
          outputs:
             - deployment.tfplan
+            - plan_summary
          references:
             - references/deployment-guidance.md
       - id: step-5
+         name: apply
+         requires_confirmation: true
+         inputs:
+            - deployment.tfplan
+         references:
+            - references/deployment-guidance.md
+      - id: step-6
          name: smoke_test
          requires_confirmation:
             core_smoke_tests: false
             model_deployment_validation: true
+         references:
+            - references/smoke-test-guidance.md
          optional_actions:
             - id: validate_model_deployments
                scripts:
@@ -118,11 +129,11 @@ workflow:
 
 ### 1) Discover and recommend architecture options
 
-1. Create a new directory `.caira` in the local repository if it doesn't exist. Add `.caira/` to `.gitignore` to avoid committing all reference architectures and modules.
-1. Download the latest release of CAIRA reference architectures from the [CAIRA GitHub repository](https://github.com/microsoft/CAIRA/releases) into a temporary location.
-1. Extract the zip contents and move the `reference_architectures/` and `modules/` folders to the `.caira` directory.
-1. List all folders under `reference_architectures/` within the `.caira` directory to identify available RAs.
-1. Read each candidate RA `README.md` and summarize:
+1. Crawl the [CAIRA GitHub repository](https://github.com/microsoft/CAIRA) first to identify currently available RA folders under `reference_architectures/`.
+   - Prefer GitHub API calls with a token when available to avoid low unauthenticated rate limits; if rate-limited, continue with release zip fallback.
+1. If repository crawling is unavailable or incomplete, fall back to downloading the latest CAIRA release zip and inspect `reference_architectures/` from the extracted package.
+1. If release zip retrieval is unavailable, fall back to `git clone` of the CAIRA repository at a pinned tag/commit and inspect `reference_architectures/` locally.
+1. Read each discovered RA `README.md` in the CAIRA repo and summarize:
    - Intended use case
    - Public/private networking pattern
    - Complexity and dependencies
@@ -131,18 +142,26 @@ workflow:
    - Public vs Private
 1. Ask the user to pick one RA explicitly and wait for their choice.
 
+After RA selection:
+
+1. Download the latest CAIRA release zip into a temporary location.
+1. If release zip retrieval fails, fall back to cloning the CAIRA repository at a pinned tag/commit.
+1. Keep any downloaded/extracted CAIRA source as temporary staging only; do not direct users to work from `.caira`.
+1. Continue to Step 2 and copy required folders into the repository root structure.
+
 Execution prompt:
 
 - "I can present these options with recommendations. Do you want a quick comparison table or detailed trade-offs?"
+- "If you want authenticated repo crawling, set `GITHUB_TOKEN` first (for example: `export GITHUB_TOKEN=...`) to reduce GitHub API rate-limit issues."
 
 ### 2) Copy RA and module dependencies into local repo
 
-After the user selects one RA:
-
-1. Create destination folders in the local target repository:
-   - `reference_architectures/<selected_ra>/`
+1. Validate required destination folders in the repository root and create them if missing:
+   - `reference_architectures/`
    - `modules/`
-1. Copy selected RA directory recursively.
+1. Create destination folders for the selected architecture if missing:
+   - `reference_architectures/<selected_ra>/`
+1. Copy selected RA directory recursively from staging into `reference_architectures/<selected_ra>/`.
 1. Copy CAIRA modules recursively:
    - `modules/ai_foundry/`
    - `modules/ai_foundry_project/`
@@ -150,7 +169,8 @@ After the user selects one RA:
    - `modules/existing_resources_agent_capability_host_connections/`
    - `modules/new_resources_agent_capability_host_connections/`
 1. Preserve relative module references so RA `main.tf` continues to resolve `../../modules/...`.
-1. Confirm copied files exist before customization.
+1. Confirm copied folders and required files exist in root paths before customization.
+1. Instruct users to run Terraform only from `reference_architectures/<selected_ra>/` in the repository root, not from `.caira`.
 
 Execution prompt:
 
@@ -175,9 +195,9 @@ Execution prompt:
 
 - "I can walk you through each variable and explain defaults, or apply your confirmed values directly."
 
-### 4) Plan and apply safely
+### 4) Plan safely
 
-See `references/deployment-guidance.md` for Step 4 prerequisites, Azure CLI authentication, and Terraform `ARM_*` environment variables.
+See `references/deployment-guidance.md` for Step 4 and Step 5 prerequisites, Azure CLI authentication, and Terraform `ARM_*` environment variables.
 
 From `reference_architectures/<selected_ra>/`:
 
@@ -186,20 +206,33 @@ From `reference_architectures/<selected_ra>/`:
 1. `terraform validate`
 1. `terraform plan -var-file=terraform.tfvars -out=deployment.tfplan`
 1. `terraform show deployment.tfplan` and summarize key creates/changes in plain language.
+1. Pause and ask whether to proceed to apply, revise configuration, or stop.
+
+Execution prompt:
+
+- "After plan review, would you like to proceed to apply, revise inputs and re-plan, or stop here?"
+
+### 5) Apply safely
+
+From `reference_architectures/<selected_ra>/`:
+
 1. Ask explicit confirmation: "Are you ready to proceed with deployment?"
 1. Only on `yes`: `terraform apply deployment.tfplan`
 
 Rules:
 
 - Never run `terraform apply` without explicit user confirmation.
+- Always support a pause for plan review before apply.
 - Offer manual or guided command execution based on user preference.
 - Surface quota, permission, and naming conflicts clearly before apply.
 
 Execution prompt:
 
-- "Would you like to run these commands manually, or would you like me to execute them for you?"
+- "Would you like to run the apply command manually, or would you like me to execute it for you?"
 
-### 5) Smoke test deployed infrastructure
+### 6) Smoke test deployed infrastructure
+
+See `references/smoke-test-guidance.md` for Step 6 post-deploy check details and model validation payload guidance.
 
 Run lightweight post-deploy checks:
 

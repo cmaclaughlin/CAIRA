@@ -1,0 +1,34 @@
+#  yaml-language-server: $schema=https://taskfile.dev/schema.json
+# docs: https://taskfile.dev
+---
+version: "3"
+
+includes:
+  internal: internal.yml
+
+tasks:
+  # * Install skills-ref
+  install:skills-ref:
+    desc: Install CodeSpell
+    cmds:
+      - task: internal:install:uv
+        vars:
+          APP: skills-ref
+
+  # * Tools
+  tools:
+    desc: Install Skills tools
+    cmds:
+      - task: install:skills-ref
+
+  # * Validate
+  validate:
+    desc: Validate Skill definitions
+    preconditions:
+      - sh: test -d skills
+        msg: "skills directory not found at repository root"
+      - sh: task internal:command -- uv
+        msg: "uv is not installed."
+    cmds:
+      - find skills -mindepth 1 -maxdepth 1 -type d -print0 | xargs -0 -I{} uv run python -m skills_ref.cli validate "{}"
+    dir: "{{.TASKFILE_DIR}}/.."

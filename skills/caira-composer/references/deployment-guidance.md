@@ -1,10 +1,10 @@
 ---
 title: CAIRA Deployment Prerequisites Guidance
-description: 'Step 4 prerequisites for CAIRA plan/apply, including Azure CLI authentication and Terraform AzureRM environment variables'
-applies_to_step: ["step-4"]
+description: 'Step 4 and Step 5 prerequisites for CAIRA plan/apply, including Azure CLI authentication and Terraform AzureRM environment variables'
+applies_to_step: ["step-4", "step-5"]
 ---
 
-## Step 4 Prerequisites (Plan and Apply)
+## Step 4 and Step 5 Prerequisites (Plan and Apply)
 
 Complete these checks before running `terraform init/validate/plan/apply`.
 
@@ -59,3 +59,11 @@ az group list --query "[].name" -o tsv | head
 # Confirm Terraform can initialize from the selected architecture directory
 terraform init -backend=false
 ```
+
+### 6) Plan Review Pause Before Apply
+
+After creating `deployment.tfplan`:
+
+- Run `terraform show deployment.tfplan` and summarize creates/changes/destroys in plain language.
+- Ask the user to choose one path: proceed to apply, revise inputs and re-run plan, or stop.
+- Only run `terraform apply deployment.tfplan` after explicit user confirmation.

@@ -40,6 +40,12 @@ API style:
     POST {endpoint}/openai/v1/chat/completions
     (payload includes: "model": "{deployment}")
 
+Model-specific behavior:
+  - For deployments whose name starts with "gpt-5", the script automatically:
+    - uses "max_completion_tokens" instead of "max_tokens"
+    - omits the "temperature" field
+  - For other models, the script keeps the existing payload fields.
+
 Examples:
   scripts/curl-dynamic-model-endpoint.sh \
     --from-terraform reference_architectures/foundry_basic \
@@ -125,6 +131,8 @@ prompt="Hello from CAIRA dynamic model deployment test."
 payload_file=""
 max_tokens="300"
 temperature="0.2"
+token_parameter_name="max_tokens"
+temperature_fragment=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -223,6 +231,13 @@ if [[ "$api_style" != "deployments" && "$api_style" != "v1" ]]; then
   fail 2 "--api-style must be 'deployments' or 'v1'"
 fi
 
+deployment_lc="$(printf '%s' "$deployment" | tr '[:upper:]' '[:lower:]')"
+if [[ "$deployment_lc" == gpt-5* ]]; then
+  token_parameter_name="max_completion_tokens"
+else
+  temperature_fragment="$(printf ',\n  "temperature": %s' "$temperature")"
+fi
+
 if [[ -n "$payload_file" ]]; then
   if [[ ! -f "$payload_file" ]]; then
     fail 2 "payload file not found: $payload_file"
@@ -240,8 +255,7 @@ else
     {"role": "system", "content": "You are a concise assistant."},
     {"role": "user", "content": "$escaped_prompt"}
   ],
-  "max_tokens": $max_tokens,
-  "temperature": $temperature
+  "$token_parameter_name": $max_tokens$temperature_fragment
 }
 EOF
     )
@@ -254,8 +268,7 @@ EOF
     {"role": "system", "content": "You are a concise assistant."},
     {"role": "user", "content": "$escaped_prompt"}
   ],
-  "max_tokens": $max_tokens,
-  "temperature": $temperature
+  "$token_parameter_name": $max_tokens$temperature_fragment
 }
 EOF
     )

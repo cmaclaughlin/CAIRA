@@ -1,7 +1,7 @@
 ---
 title: CAIRA Composer Reference Index
 description: 'Quick index for CAIRA composer guidance files and when to use each during the workflow'
-applies_to_step: ["step-1", "step-3", "step-4"]
+applies_to_step: ["step-1", "step-3", "step-4", "step-5", "step-6"]
 ---
 
 # CAIRA Composer References
@@ -31,12 +31,20 @@ reference_index:
         - architecture selection flow
         - deployment authentication runbooks
     - file: references/deployment-guidance.md
-      applies_to_step: ["step-4"]
+      applies_to_step: ["step-4", "step-5"]
       purpose: pre_plan_apply_prerequisites_and_authentication_setup
       used_when:
         - preparing terraform init/validate/plan/apply execution
       not_for:
         - deep architecture trade-off analysis
+    - file: references/smoke-test-guidance.md
+      applies_to_step: ["step-6"]
+      purpose: post_deploy_smoke_test_checks_and_model_validation_payload_guidance
+      used_when:
+        - running post-deployment checks and model endpoint validation
+      not_for:
+        - terraform plan/apply prerequisites
+        - architecture trade-off analysis
 ```
 
 ## JSON output contract
@@ -51,27 +59,13 @@ Notes:
 - `status` is `success` or `error`
 - `exit_code` mirrors process exit code (`0`, `2`, `3`, `4`)
 
-## 1) architecture-guidance.md
-
-- **What it covers**: Azure Well-Architected additional considerations for a selected CAIRA reference architecture.
-- **When it matters**: After architecture selection, when the user asks for architecture recommendations, design trade-offs, or Well-Architected improvements.
-- **Not for**: Configuration value walkthroughs, deployment command execution, or runbook-style steps.
-
-## 2) configuration-guidance.md
-
-- **What it covers**: Parameter quality checks, dependency compatibility, inter-module validation, and secure configuration defaults.
-- **When it matters**: During workflow Step 3 (customize configuration) and any time validating `variables.tf`, dependency links, SKUs, RBAC, or network compatibility.
-- **Not for**: Architecture-option selection flow or deployment authentication/run commands.
-
-## 3) deployment-guidance.md
-
-- **What it covers**: Step 4 prerequisites for plan/apply, including Azure CLI login, subscription context, and Terraform AzureRM `ARM_*` environment variables.
-- **When it matters**: Immediately before running `terraform init/validate/plan/apply`.
-- **Not for**: Architecture recommendation logic or deep parameter design decisions.
-
 ## Quick Mapping to Skill Workflow
 
 - **Step 1 (discover/select RA)**: primarily `SKILL.md`
 - **Step 3 (customize config)**: `configuration-guidance.md`
-- **Step 4 (plan/apply readiness)**: `deployment-guidance.md`
+- **Step 4 (plan readiness)**: `deployment-guidance.md`
+- **Step 5 (apply readiness)**: `deployment-guidance.md`
+- **Step 6 (smoke testing)**: `smoke-test-guidance.md`
 - **Optional architecture review after selection**: `architecture-guidance.md`
+
+Use the machine-readable index above as the canonical source for file purpose, `used_when`, and `not_for` definitions.

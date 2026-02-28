@@ -37,6 +37,8 @@ includes:
     taskfile: .taskfiles/security.yml
   spell:
     taskfile: .taskfiles/spell.yml
+  skills:
+    taskfile: .taskfiles/skills.yml
   tf:
     taskfile: .taskfiles/terraform.yml
   yml:
